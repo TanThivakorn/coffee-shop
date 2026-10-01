@@ -1,0 +1,31 @@
+{
+  "name": "@coffee/api",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage"
+  },
+  "dependencies": {
+    "@coffee/shared": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.30",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^7.1.0",
+    "ts-jest": "^29.2.6",
+    "ts-node-dev": "^2.0.0"
+  }
+}
