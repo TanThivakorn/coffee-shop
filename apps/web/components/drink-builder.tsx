@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { Catalog, DrinkInput, ReceiptItem } from "@coffee/shared";
 import { Coffee, Plus } from "lucide-react";
 import { api, money } from "@/lib/api";
@@ -27,37 +28,17 @@ export function DrinkBuilder({
   disabled: boolean;
 }) {
   const [drink, setDrink] = useState<DrinkInput>(initialDrink);
-  const [quote, setQuote] = useState<ReceiptItem | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const quoteQuery = useQuery({
+    queryKey: ["quote", drink],
+    queryFn: ({ signal }) => api.quote(drink, signal),
+  });
+  const quote =
+    quoteQuery.isFetching || quoteQuery.isError ? undefined : quoteQuery.data;
+  const error =
+    quoteQuery.isError && !quoteQuery.isFetching
+      ? quoteQuery.error.message
+      : null;
 
-  const ignorePreviousQuote = useRef(() => {});
-
-  const loadQuote = useCallback(() => {
-    ignorePreviousQuote.current();
-    let active = true;
-    ignorePreviousQuote.current = () => {
-      active = false;
-    };
-    setQuote(null);
-    setError(null);
-    api
-      .quote(drink)
-      .then((result) => {
-        if (active) setQuote(result);
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setError(
-            error instanceof Error ? error.message : "Unable to quote drink.",
-          );
-      });
-  }, [drink]);
-
-  useEffect(() => {
-    loadQuote();
-    // Ignore pending requests, including retries, when the drink changes.
-    return () => ignorePreviousQuote.current();
-  }, [loadQuote]);
   const additions = [
     ...catalog.syrups.map((entry) => ({
       name: entry.name,
@@ -139,7 +120,7 @@ export function DrinkBuilder({
         {error && (
           <div role="alert" className="mt-3 text-sm text-red-800">
             {error}{" "}
-            <Button variant="ghost" onClick={loadQuote}>
+            <Button variant="ghost" onClick={() => void quoteQuery.refetch()}>
               Retry quote
             </Button>
           </div>

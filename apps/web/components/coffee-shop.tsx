@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import type { Catalog, DrinkInput, Receipt, ReceiptItem } from "@coffee/shared";
+import { useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { DrinkInput, Receipt, ReceiptItem } from "@coffee/shared";
 import { Coffee } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -8,54 +9,33 @@ import { Button } from "./ui/button";
 import { DrinkBuilder, type CartItem } from "./drink-builder";
 import { OrderSummary, ReceiptCard } from "./order-summary";
 export function CoffeeShop() {
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const catalogQuery = useQuery({
+    queryKey: ["catalog"],
+    queryFn: api.catalog,
+  });
+  const catalog = catalogQuery.data;
   const [items, setItems] = useState<CartItem[]>([]);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState("");
   const nextId = useRef(1);
-  async function loadCatalog() {
-    setCatalogError(null);
-    try {
-      setCatalog(await api.catalog());
-    } catch (error) {
-      setCatalogError(
-        error instanceof Error ? error.message : "Unable to load menu.",
-      );
-    }
-  }
-  useEffect(() => {
-    void loadCatalog();
-  }, []);
+  const orderMutation = useMutation({
+    mutationFn: api.order,
+    onSuccess: (result) => {
+      setReceipt(result);
+      setItems([]);
+      setNotice("Order confirmed. Your receipt is ready.");
+    },
+  });
   function add(drink: DrinkInput, quote: ReceiptItem) {
     const item = { id: nextId.current++, drink, quote };
     setItems((previous) => [...previous, item]);
     setReceipt(null);
-    setError(null);
+    orderMutation.reset();
     setNotice("Drink added to your order.");
   }
-  async function submit() {
-    if (pending || !items.length) return;
-    setPending(true);
-    setError(null);
-    try {
-      const result = await api.order({
-        drinks: items.map((item) => item.drink),
-      });
-      setReceipt(result);
-      setItems([]);
-      setNotice("Order confirmed. Your receipt is ready.");
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to place order. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+  function submit() {
+    if (orderMutation.isPending || !items.length) return;
+    orderMutation.mutate({ drinks: items.map((item) => item.drink) });
   }
   return (
     <>
@@ -96,10 +76,13 @@ export function CoffeeShop() {
         </p>
         {!catalog ? (
           <div className="rounded-2xl border border-border bg-card p-10">
-            {catalogError ? (
+            {catalogQuery.isError ? (
               <div role="alert">
-                <p>{catalogError}</p>
-                <Button className="mt-4" onClick={() => void loadCatalog()}>
+                <p>{catalogQuery.error.message}</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => void catalogQuery.refetch()}
+                >
                   Try again
                 </Button>
               </div>
@@ -111,20 +94,24 @@ export function CoffeeShop() {
           </div>
         ) : (
           <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
-            <DrinkBuilder catalog={catalog} onAdd={add} disabled={pending} />
+            <DrinkBuilder
+              catalog={catalog}
+              onAdd={add}
+              disabled={orderMutation.isPending}
+            />
             <aside className="space-y-6 lg:sticky lg:top-6">
               <OrderSummary
                 items={items}
-                pending={pending}
-                error={error}
+                pending={orderMutation.isPending}
+                error={orderMutation.error?.message ?? null}
                 onRemove={(id) => {
                   setItems((previous) =>
                     previous.filter((item) => item.id !== id),
                   );
-                  setError(null);
+                  orderMutation.reset();
                   setNotice("Drink removed from your order.");
                 }}
-                onSubmit={() => void submit()}
+                onSubmit={submit}
               />
               {receipt && <ReceiptCard receipt={receipt} />}
               <p className="px-4 text-center text-xs leading-5 text-foreground/50">

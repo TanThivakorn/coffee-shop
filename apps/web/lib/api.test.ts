@@ -47,4 +47,28 @@ describe("API boundary", () => {
     );
     await expect(api.catalog()).rejects.toThrow("Cannot reach the coffee shop");
   });
+  it("passes the quote signal through fetch and preserves cancellation", async () => {
+    const controller = new AbortController();
+    const aborted = new DOMException("Cancelled", "AbortError");
+    const fetch = vi.fn().mockImplementation(async () => {
+      controller.abort();
+      throw aborted;
+    });
+    vi.stubGlobal("fetch", fetch);
+    const drink = {
+      base: "coffee" as const,
+      size: "small" as const,
+      syrups: [],
+      toppings: [],
+    };
+    await expect(api.quote(drink, controller.signal)).rejects.toBe(aborted);
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/quotes",
+      expect.objectContaining({
+        method: "POST",
+        signal: controller.signal,
+        body: JSON.stringify(drink),
+      }),
+    );
+  });
 });

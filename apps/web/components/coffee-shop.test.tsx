@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import { renderWithQuery as render } from "../test/render";
 import userEvent from "@testing-library/user-event";
 import { CoffeeShop } from "./coffee-shop";
 import { api } from "@/lib/api";
@@ -67,6 +68,7 @@ describe("Coffee ordering", () => {
     await waitFor(() =>
       expect(api.quote).toHaveBeenLastCalledWith(
         expect.objectContaining({ syrups: ["vanilla", "vanilla"] }),
+        expect.any(AbortSignal),
       ),
     );
   });
@@ -159,7 +161,7 @@ describe("Coffee ordering", () => {
     const receipt = within(
       await screen.findByRole("region", { name: "Order confirmed" }),
     );
-    expect(api.order).toHaveBeenCalledWith({
+    expect(vi.mocked(api.order).mock.calls[0][0]).toEqual({
       drinks: [
         {
           base: "coffee",
@@ -200,7 +202,7 @@ describe("Coffee ordering", () => {
     vi.mocked(api.order).mockReturnValue(new Promise(() => {}));
     await ready();
     await add();
-    await user().click(screen.getByRole("button", { name: /Place order/ }));
+    await user().dblClick(screen.getByRole("button", { name: /Place order/ }));
     expect(
       screen.getByRole("button", { name: "Placing order…" }),
     ).toBeDisabled();
@@ -257,12 +259,15 @@ describe("Coffee ordering", () => {
         }),
       );
       await user().click(screen.getByRole("button", { name: "Retry quote" }));
-      expect(api.quote).toHaveBeenLastCalledWith({
-        base: "coffee",
-        size: "small",
-        syrups: [],
-        toppings: [],
-      });
+      expect(api.quote).toHaveBeenLastCalledWith(
+        {
+          base: "coffee",
+          size: "small",
+          syrups: [],
+          toppings: [],
+        },
+        expect.any(AbortSignal),
+      );
       vi.mocked(api.quote).mockResolvedValue({
         description: "Small Tea",
         price: 6000,
@@ -286,5 +291,43 @@ describe("Coffee ordering", () => {
     await user().click(screen.getByRole("radio", { name: /^Large/ }));
     expect(screen.getByRole("button", { name: "Add to order" })).toBeDisabled();
     expect(screen.getByText("Calculating…")).toBeVisible();
+  });
+  it("shows only the latest quote after rapid drink changes", async () => {
+    await ready();
+    let finishTea = () => {};
+    vi.mocked(api.quote).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishTea = () => resolve({ description: "Small Tea", price: 6000 });
+      }),
+    );
+    await user().click(screen.getByRole("radio", { name: /^Tea/ }));
+    vi.mocked(api.quote).mockResolvedValue({
+      description: "Small Milk",
+      price: 5000,
+    });
+    await user().click(screen.getByRole("radio", { name: /^Milk/ }));
+    const preview = within(screen.getByLabelText("Current drink"));
+    await waitFor(() => expect(preview.getByText("THB 50.00")).toBeVisible());
+    await act(async () => {
+      finishTea();
+    });
+    expect(preview.getByRole("heading")).toHaveTextContent("Small Milk");
+    expect(preview.getByText("THB 50.00")).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("uses the final receipt price even when it differs from the cart quote", async () => {
+    await ready();
+    await add();
+    vi.mocked(api.order).mockResolvedValue({
+      currency: "THB",
+      items: [{ description: "Small Coffee", price: 9000 }],
+      grandTotal: 9000,
+    });
+    await user().click(screen.getByRole("button", { name: /Place order/ }));
+    const receipt = within(
+      await screen.findByRole("region", { name: "Order confirmed" }),
+    );
+    expect(receipt.getAllByText("THB 90.00")).toHaveLength(2);
+    expect(receipt.queryByText("THB 70.00")).not.toBeInTheDocument();
   });
 });

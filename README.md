@@ -15,7 +15,7 @@
 
 ## Tech Stack
 
-- **Frontend:** Next.js App Router, React, TypeScript, Tailwind CSS, shadcn/ui components.
+- **Frontend:** Next.js App Router, React, TypeScript, TanStack Query, Tailwind CSS, shadcn/ui components.
 - **Backend:** NestJS, TypeScript, Zod.
 - **Testing:** Jest + Supertest, Vitest + React Testing Library, Playwright.
 - **Tooling:** pnpm workspace, strict TypeScript, ESLint, Prettier.
@@ -45,6 +45,8 @@ flowchart TD
 The domain does not depend on Next.js or NestJS. Shared contracts keep API inputs consistent without putting pricing logic in the frontend. Next.js forwards `/api/*` requests to NestJS.
 
 ## Design Approach
+
+TanStack Query manages server state and asynchronous request lifecycle, while React state manages local UI state such as drink configuration and cart contents. Catalog and quote requests use queries; checkout uses a mutation. Native fetch remains the HTTP transport. Failures use explicit retry buttons rather than automatic retries.
 
 Composition keeps the model small:
 
@@ -217,5 +219,5 @@ If persistence is needed later, PostgreSQL + Drizzle ORM can be added behind the
 
 - A static catalog is easy to review and extend, but changing available ingredients requires a code change.
 - Server quotes require a network request on each configuration change, keeping pricing in one place.
-- Local React state is sufficient for this flow; no global state library is needed.
+- React state keeps the cart and drink configuration local; TanStack Query handles server requests.
 - Orders return receipts without durable storage, payments, or fulfillment tracking.
