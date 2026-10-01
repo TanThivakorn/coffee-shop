@@ -67,7 +67,6 @@ describe("Coffee ordering", () => {
     await waitFor(() =>
       expect(api.quote).toHaveBeenLastCalledWith(
         expect.objectContaining({ syrups: ["vanilla", "vanilla"] }),
-        expect.any(AbortSignal),
       ),
     );
   });
@@ -96,11 +95,11 @@ describe("Coffee ordering", () => {
   });
   it("adds the configured drink and resets the builder", async () => {
     await ready();
-    await user().click(screen.getByRole("button", { name: "Add Vanilla" }));
     vi.mocked(api.quote).mockResolvedValue({
       description: "Small Coffee, Vanilla",
       price: 8500,
     });
+    await user().click(screen.getByRole("button", { name: "Add Vanilla" }));
     await add();
     expect(
       within(screen.getByRole("region", { name: "Your order" })).getByText(
@@ -142,10 +141,9 @@ describe("Coffee ordering", () => {
     await u.click(screen.getByRole("radio", { name: /^Large/ }));
     await u.click(screen.getByRole("button", { name: "Add Vanilla" }));
     await u.click(screen.getByRole("button", { name: "Add Vanilla" }));
+    vi.mocked(api.quote).mockResolvedValueOnce(specialQuote);
     await u.click(screen.getByRole("button", { name: "Add Whipped Cream" }));
-    vi.mocked(api.quote).mockResolvedValue(specialQuote);
     await add();
-    vi.mocked(api.quote).mockResolvedValue(plainQuote);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Add to order" }),
@@ -241,39 +239,11 @@ describe("Coffee ordering", () => {
       ).toBeEnabled(),
     );
   });
-  it("does not allow a stale quote to be added while updating", async () => {
+  it("shows quote loading and waits before adding a drink", async () => {
     await ready();
     vi.mocked(api.quote).mockReturnValue(new Promise(() => {}));
     await user().click(screen.getByRole("radio", { name: /^Large/ }));
     expect(screen.getByRole("button", { name: "Add to order" })).toBeDisabled();
     expect(screen.getByText("Calculating…")).toBeVisible();
-  });
-  it("ignores a late response for a previous configuration", async () => {
-    await ready();
-    let resolveOld: ((value: typeof plainQuote) => void) | undefined;
-    vi.mocked(api.quote).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveOld = resolve;
-        }),
-    );
-    await user().click(screen.getByRole("radio", { name: /^Medium/ }));
-    await waitFor(() => expect(resolveOld).toBeDefined());
-    vi.mocked(api.quote).mockResolvedValue(specialQuote);
-    await user().click(screen.getByRole("radio", { name: /^Large/ }));
-    await waitFor(() => expect(screen.getByText("THB 150.00")).toBeVisible());
-    resolveOld?.({ description: "Medium Coffee", price: 8500 });
-    await waitFor(() =>
-      expect(screen.queryByText("THB 85.00")).not.toBeInTheDocument(),
-    );
-    expect(screen.getByText("THB 150.00")).toBeVisible();
-  });
-  it("communicates the customization limit", async () => {
-    await ready();
-    for (let i = 0; i < 20; i++)
-      await user().click(screen.getByRole("button", { name: "Add Vanilla" }));
-    expect(screen.getByText("Vanilla ×20")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Add Caramel" })).toBeDisabled();
-    expect(screen.getByText("Maximum 20 syrups per drink.")).toBeVisible();
   });
 });

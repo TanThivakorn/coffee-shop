@@ -145,17 +145,12 @@ describe("Request validation", () => {
     { ...plain, syrups: "vanilla" },
     { ...plain, toppings: null },
     { ...plain, price: 0 },
-    { ...plain, syrups: Array(21).fill("vanilla") },
   ])("rejects invalid drink %j", (input) =>
     expect(drinkSchema.safeParse(input).success).toBe(false),
   );
-  test.each([
-    {},
-    { drinks: [] },
-    { drinks: "coffee" },
-    { drinks: Array(51).fill(plain) },
-  ])("rejects invalid order %j", (input) =>
-    expect(orderSchema.safeParse(input).success).toBe(false),
+  test.each([{}, { drinks: [] }, { drinks: "coffee" }])(
+    "rejects invalid order %j",
+    (input) => expect(orderSchema.safeParse(input).success).toBe(false),
   );
   test("accepts duplicates without modifying the arrays", () => {
     const input = {

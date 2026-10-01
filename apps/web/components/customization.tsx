@@ -97,7 +97,6 @@ export function IngredientGroup<T extends string>({
                 variant="outline"
                 size="icon"
                 aria-label={`Add ${entry.name}`}
-                disabled={selected.length >= 20}
                 onClick={() => onChange([...selected, entry.id])}
               >
                 <Plus size={14} />
@@ -106,11 +105,6 @@ export function IngredientGroup<T extends string>({
           </div>
         );
       })}
-      {selected.length >= 20 && (
-        <p role="status" className="text-xs">
-          Maximum 20 {title.toLowerCase()} per drink.
-        </p>
-      )}
     </fieldset>
   );
 }

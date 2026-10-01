@@ -27,45 +27,29 @@ export function DrinkBuilder({
   disabled: boolean;
 }) {
   const [drink, setDrink] = useState<DrinkInput>(initialDrink);
-  const [result, setResult] = useState<{
-    key: string;
-    quote: ReceiptItem;
-  } | null>(null);
-  const [failure, setFailure] = useState<{
-    key: string;
-    message: string;
-  } | null>(null);
-  const [retry, setRetry] = useState(0);
-  const key = JSON.stringify(drink);
+  const [quote, setQuote] = useState<ReceiptItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      void api
-        .quote(JSON.parse(key) as DrinkInput, controller.signal)
-        .then((quote) => {
-          if (!controller.signal.aborted) {
-            setResult({ key, quote });
-            setFailure(null);
-          }
-        })
-        .catch((error: unknown) => {
-          if (!controller.signal.aborted)
-            setFailure({
-              key,
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to quote drink.",
-            });
-        });
-    }, 150);
+    let active = true;
+    setQuote(null);
+    setError(null);
+    api
+      .quote(drink)
+      .then((result) => {
+        if (active) setQuote(result);
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setError(
+            error instanceof Error ? error.message : "Unable to quote drink.",
+          );
+      });
+    // A previous request should not replace the current drink's quote.
     return () => {
-      clearTimeout(timer);
-      controller.abort();
+      active = false;
     };
-  }, [key, retry]);
-  const quote = result?.key === key ? result.quote : null;
-  const error = failure?.key === key ? failure.message : null;
+  }, [drink]);
   const additions = [
     ...catalog.syrups.map((entry) => ({
       name: entry.name,
@@ -147,13 +131,7 @@ export function DrinkBuilder({
         {error && (
           <div role="alert" className="mt-3 text-sm text-red-800">
             {error}{" "}
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setFailure(null);
-                setRetry((value) => value + 1);
-              }}
-            >
+            <Button variant="ghost" onClick={() => setDrink({ ...drink })}>
               Retry quote
             </Button>
           </div>

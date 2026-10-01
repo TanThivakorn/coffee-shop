@@ -10,43 +10,34 @@ import { OrderSummary, ReceiptCard } from "./order-summary";
 export function CoffeeShop() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
   const [items, setItems] = useState<CartItem[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState("");
   const nextId = useRef(1);
-  const submitting = useRef(false);
+  async function loadCatalog() {
+    setCatalogError(null);
+    try {
+      setCatalog(await api.catalog());
+    } catch (error) {
+      setCatalogError(
+        error instanceof Error ? error.message : "Unable to load menu.",
+      );
+    }
+  }
   useEffect(() => {
-    let active = true;
-    void api
-      .catalog()
-      .then((data) => {
-        if (active) setCatalog(data);
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setCatalogError(
-            error instanceof Error ? error.message : "Unable to load menu.",
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
+    void loadCatalog();
+  }, []);
   function add(drink: DrinkInput, quote: ReceiptItem) {
-    setItems((previous) => [
-      ...previous,
-      { id: nextId.current++, drink, quote },
-    ]);
+    const item = { id: nextId.current++, drink, quote };
+    setItems((previous) => [...previous, item]);
     setReceipt(null);
     setError(null);
     setNotice("Drink added to your order.");
   }
   async function submit() {
-    if (submitting.current || !items.length) return;
-    submitting.current = true;
+    if (pending || !items.length) return;
     setPending(true);
     setError(null);
     try {
@@ -63,7 +54,6 @@ export function CoffeeShop() {
           : "Unable to place order. Please try again.",
       );
     } finally {
-      submitting.current = false;
       setPending(false);
     }
   }
@@ -109,13 +99,7 @@ export function CoffeeShop() {
             {catalogError ? (
               <div role="alert">
                 <p>{catalogError}</p>
-                <Button
-                  className="mt-4"
-                  onClick={() => {
-                    setCatalogError(null);
-                    setAttempt((value) => value + 1);
-                  }}
-                >
+                <Button className="mt-4" onClick={() => void loadCatalog()}>
                   Try again
                 </Button>
               </div>
@@ -127,11 +111,7 @@ export function CoffeeShop() {
           </div>
         ) : (
           <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
-            <DrinkBuilder
-              catalog={catalog}
-              onAdd={add}
-              disabled={pending || items.length >= 50}
-            />
+            <DrinkBuilder catalog={catalog} onAdd={add} disabled={pending} />
             <aside className="space-y-6 lg:sticky lg:top-6">
               <OrderSummary
                 items={items}

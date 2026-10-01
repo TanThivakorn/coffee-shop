@@ -5,34 +5,20 @@ import type {
   Receipt,
   ReceiptItem,
 } from "@coffee/shared";
-async function request<T>(
-  path: string,
-  body?: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
+async function request<T>(path: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api/${path}`, {
       method: body ? "POST" : "GET",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      signal,
     });
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "name" in error &&
-      error.name === "AbortError"
-    )
-      throw error;
+  } catch {
     throw new Error("Cannot reach the coffee shop. Please try again.");
   }
   if (!response.ok) {
     if (response.status === 400)
-      throw new Error(
-        "Please check your drink selections. Use up to 20 syrups and 20 toppings per drink, and 50 drinks per order.",
-      );
+      throw new Error("Please check your drink selections.");
     throw new Error(
       "The coffee shop is temporarily unavailable. Please try again.",
     );
@@ -41,8 +27,7 @@ async function request<T>(
 }
 export const api = {
   catalog: () => request<Catalog>("catalog"),
-  quote: (drink: DrinkInput, signal?: AbortSignal) =>
-    request<ReceiptItem>("quotes", drink, signal),
+  quote: (drink: DrinkInput) => request<ReceiptItem>("quotes", drink),
   order: (order: OrderInput) => request<Receipt>("orders", order),
 };
 export const money = (satang: number) =>

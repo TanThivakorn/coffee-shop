@@ -71,11 +71,6 @@ export function OrderSummary({
           {error}
         </p>
       )}
-      {items.length >= 50 && (
-        <p role="status" className="mt-3 text-sm">
-          Order limit reached: 50 drinks.
-        </p>
-      )}
       <Button
         className="mt-5 w-full"
         disabled={pending || !items.length}

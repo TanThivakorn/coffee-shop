@@ -47,13 +47,4 @@ describe("API boundary", () => {
     );
     await expect(api.catalog()).rejects.toThrow("Cannot reach the coffee shop");
   });
-  it("preserves abort cancellation", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new DOMException("Aborted", "AbortError")),
-    );
-    await expect(
-      api.quote({ base: "coffee", size: "small", syrups: [], toppings: [] }),
-    ).rejects.toMatchObject({ name: "AbortError" });
-  });
 });
