@@ -61,7 +61,7 @@ Zod validates required fields, allowed options, ingredient arrays, and a nonempt
 
 ## Pricing
 
-The assessment does not specify prices, so these are sample assumptions. All pricing is centralized in `apps/api/src/domain/catalog.ts`. Money uses integer **satang**: `7000 = THB 70.00`. Size prices are added to the base price, and all prices are inclusive.
+The assessment does not specify prices, so these are sample assumptions. All pricing is centralized in `apps/api/src/domain/catalog.ts`. Money uses integer **satang**: `7000 = THB 70.00`. Size prices are added to the base price.
 
 | Category              | Options and prices (THB)                      |
 | --------------------- | --------------------------------------------- |

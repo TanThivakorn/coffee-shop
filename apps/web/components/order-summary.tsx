@@ -64,7 +64,7 @@ export function OrderSummary({
         </span>
       </div>
       <p className="mt-2 text-xs text-foreground/55">
-        THB · All listed prices are inclusive.
+        All prices shown in THB.
       </p>
       {error && (
         <p role="alert" className="mt-4 text-sm text-red-800">

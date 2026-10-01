@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Catalog, DrinkInput, ReceiptItem } from "@coffee/shared";
 import { Coffee, Plus } from "lucide-react";
 import { api, money } from "@/lib/api";
@@ -30,8 +30,14 @@ export function DrinkBuilder({
   const [quote, setQuote] = useState<ReceiptItem | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const ignorePreviousQuote = useRef(() => {});
+
+  const loadQuote = useCallback(() => {
+    ignorePreviousQuote.current();
     let active = true;
+    ignorePreviousQuote.current = () => {
+      active = false;
+    };
     setQuote(null);
     setError(null);
     api
@@ -45,11 +51,13 @@ export function DrinkBuilder({
             error instanceof Error ? error.message : "Unable to quote drink.",
           );
       });
-    // A previous request should not replace the current drink's quote.
-    return () => {
-      active = false;
-    };
   }, [drink]);
+
+  useEffect(() => {
+    loadQuote();
+    // Ignore pending requests, including retries, when the drink changes.
+    return () => ignorePreviousQuote.current();
+  }, [loadQuote]);
   const additions = [
     ...catalog.syrups.map((entry) => ({
       name: entry.name,
@@ -131,7 +139,7 @@ export function DrinkBuilder({
         {error && (
           <div role="alert" className="mt-3 text-sm text-red-800">
             {error}{" "}
-            <Button variant="ghost" onClick={() => setDrink({ ...drink })}>
+            <Button variant="ghost" onClick={loadQuote}>
               Retry quote
             </Button>
           </div>

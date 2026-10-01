@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CoffeeShop } from "./coffee-shop";
 import { api } from "@/lib/api";
@@ -239,6 +239,47 @@ describe("Coffee ordering", () => {
       ).toBeEnabled(),
     );
   });
+  it.each(["success", "failure"])(
+    "ignores a retry's late %s after the drink changes",
+    async (outcome) => {
+      vi.mocked(api.quote).mockRejectedValueOnce(
+        new Error("Quote unavailable"),
+      );
+      render(<CoffeeShop />);
+      await screen.findByRole("alert");
+      let finishRetry = () => {};
+      vi.mocked(api.quote).mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          finishRetry = () =>
+            outcome === "success"
+              ? resolve(plainQuote)
+              : reject(new Error("Old quote failed"));
+        }),
+      );
+      await user().click(screen.getByRole("button", { name: "Retry quote" }));
+      expect(api.quote).toHaveBeenLastCalledWith({
+        base: "coffee",
+        size: "small",
+        syrups: [],
+        toppings: [],
+      });
+      vi.mocked(api.quote).mockResolvedValue({
+        description: "Small Tea",
+        price: 6000,
+      });
+      await user().click(screen.getByRole("radio", { name: /^Tea/ }));
+      const preview = within(screen.getByLabelText("Current drink"));
+      await waitFor(() => expect(preview.getByText("THB 60.00")).toBeVisible());
+      await act(async () => {
+        finishRetry();
+      });
+      expect(preview.getByText("THB 60.00")).toBeVisible();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Add to order" }),
+      ).toBeEnabled();
+    },
+  );
   it("shows quote loading and waits before adding a drink", async () => {
     await ready();
     vi.mocked(api.quote).mockReturnValue(new Promise(() => {}));

@@ -21,7 +21,7 @@ export function ChoiceGroup<T extends string>({
         {entries.map((entry) => (
           <label
             key={entry.id}
-            className={`cursor-pointer rounded-xl border p-3 text-center transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 ${value === entry.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}
+            className={`cursor-pointer rounded-xl border p-3 text-center transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 ${value === entry.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}
           >
             <input
               type="radio"
